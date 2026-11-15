@@ -1,0 +1,20 @@
+# CMake build directory
+build/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+
+# Compiled binaries
+*.exe
+*.dll
+*.obj
+*.pdb
+*.ilk
+
+# Debug/release output
+Debug/
+Release/
+x64/
+x86/
