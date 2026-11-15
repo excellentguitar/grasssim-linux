@@ -34,6 +34,7 @@ public:
 
     bool isRaining() const;
     float getRainIntensity() const;
+    float getRainfallMmPerHour() const;
 
 private:
     Tile tiles[Width][Height];

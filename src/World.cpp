@@ -30,14 +30,14 @@ namespace
     // comparing water amounts.
     // ------------------------------------------------------------
 
-    constexpr float WaterFlowRate = 1.20f;
+    constexpr float WaterFlowRate = 0.85f;
     constexpr float MinimumFlowDifference = 0.015f;
 
     // How quickly standing surface water enters the soil.
-    constexpr float SurfaceAbsorptionRate = 0.008f;
+    constexpr float SurfaceAbsorptionRate = 0.035f;
 
     // Rain absorption into the surface soil.
-    constexpr float RainAbsorptionRate = 0.10f;
+    constexpr float RainAbsorptionRate = 0.30f;
 }
 
 World::World()
@@ -154,17 +154,11 @@ void World::update(float deltaTime)
     }
     else if (key == '4')
     {
-        rainIntensity -= 0.5f;
-
-        if (rainIntensity < 0.5f)
-            rainIntensity = 0.5f;
+        rainIntensity = std::max(0.1f, rainIntensity * 0.5f);
     }
     else if (key == '5')
     {
-        rainIntensity += 0.5f;
-
-        if (rainIntensity > 50.0f)
-            rainIntensity = 50.0f;
+        rainIntensity = std::min(10000.0f, rainIntensity * 2.0f);
     }
 
     // ------------------------------------------------------------
@@ -236,7 +230,7 @@ void World::updateRain(float deltaTime)
     if (raining)
     {
         float spawnRate =
-            rainIntensity * 35.0f;
+            rainIntensity * 0.70f;
 
         static float spawnAccumulator =
             0.0f;
@@ -796,7 +790,7 @@ void World::spawnRainDrop()
 
     // Use the amount already defined by World.h.
     drop.water =
-        0.25f;
+        0.025f;
 
     drop.landed =
         false;
@@ -841,6 +835,11 @@ bool World::isRaining() const
 }
 
 float World::getRainIntensity() const
+{
+    return rainIntensity;
+}
+
+float World::getRainfallMmPerHour() const
 {
     return rainIntensity;
 }

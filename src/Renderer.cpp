@@ -92,6 +92,218 @@ void Renderer::draw(const World& world)
     ClearBackground(SkyColor);
 
     // ------------------------------------------------------------
+    // PROCEDURAL BACKGROUND RAIN
+    //
+    // Decorative only. These particles never enter water physics.
+    // ------------------------------------------------------------
+
+    if (world.isRaining())
+    {
+        const float time = static_cast<float>(GetTime());
+
+        const float rainfall = world.getRainfallMmPerHour();
+
+        const float intensity =
+            std::clamp(
+                std::log10(1.0f + rainfall) / 4.0f,
+                0.0f,
+                1.0f
+            );
+
+        // Slowly changing wind with occasional stronger gusts.
+        const float wind =
+            std::sin(time * 0.35f) * 35.0f +
+            std::sin(time * 0.91f) * 22.0f +
+            std::sin(time * 0.13f) * 65.0f;
+
+        const int width = GetScreenWidth();
+        const int height = GetScreenHeight();
+
+        const int count =
+            20 + static_cast<int>(intensity * 650.0f);
+
+        for (int i = 0; i < count; ++i)
+        {
+            const float seed = static_cast<float>(i);
+
+            // Stable pseudo-random values for each particle.
+            const float randomA =
+                std::abs(std::sin(seed * 127.1f) * 43758.5453f);
+
+            const float randomB =
+                std::abs(std::sin(seed * 269.5f) * 23421.631f);
+
+            const float randomC =
+                std::abs(std::sin(seed * 73.7f) * 19341.173f);
+
+            const float a = randomA - std::floor(randomA);
+            const float b = randomB - std::floor(randomB);
+            const float c = randomC - std::floor(randomC);
+
+            // Three apparent depths.
+            const int layer = i % 3;
+
+            const float depth =
+                layer == 0 ? 0.30f :
+                layer == 1 ? 0.60f : 1.0f;
+
+            // Different particles have different fall speeds.
+            const float fallSpeed =
+                (100.0f + b * 650.0f) *
+                (0.55f + intensity * 0.65f);
+
+            const float sidewaysSpeed =
+                wind * depth +
+                (c - 0.5f) * 45.0f;
+
+            const float x =
+                std::fmod(
+                    a * width +
+                    time * sidewaysSpeed +
+                    width * 2.0f,
+                    static_cast<float>(width)
+                );
+
+            const float y =
+                std::fmod(
+                    b * height +
+                    time * fallSpeed,
+                    static_cast<float>(height)
+                );
+
+            const float size =
+                0.5f + c * (1.0f + depth * 2.0f);
+
+            const float streakLength =
+                size * (2.0f + fallSpeed / 100.0f);
+
+            const unsigned char alpha =
+                static_cast<unsigned char>(
+                    (10.0f + intensity * 65.0f) * depth
+                );
+
+            Color colour =
+            {
+                185,
+                215,
+                240,
+                alpha
+            };
+
+            DrawLineEx(
+                Vector2{x, y},
+                Vector2{
+                    x + sidewaysSpeed * 0.025f,
+                    y + streakLength
+                },
+                size * 0.45f,
+                colour
+            );
+        }
+    }
+
+
+    // ------------------------------------------------------------
+    // ATMOSPHERIC RAIN LAYERS
+    //
+    // Decorative rain only. These drops do not affect physics.
+    // Drawn in screen space, behind the terrain.
+    // ------------------------------------------------------------
+
+    if (world.isRaining())
+    {
+        const float rainfall =
+            world.getRainfallMmPerHour();
+
+        const float intensity =
+            std::clamp(
+                std::log10(1.0f + rainfall) / 4.0f,
+                0.0f,
+                1.0f
+            );
+
+        const int screenWidth =
+            GetScreenWidth();
+
+        const int screenHeight =
+            GetScreenHeight();
+
+        const float time =
+            static_cast<float>(GetTime());
+
+        const int dropCount =
+            30 + static_cast<int>(intensity * 1500.0f);
+
+        for (int i = 0; i < dropCount; ++i)
+        {
+            const int layer = i % 3;
+
+            const float seed =
+                static_cast<float>(i);
+
+            const float randomX =
+                std::fmod(
+                    std::abs(std::sin(seed * 127.1f) * 43758.5453f),
+                    1.0f
+                );
+
+            const float randomY =
+                std::fmod(
+                    std::abs(std::sin(seed * 269.5f) * 23421.631f),
+                    1.0f
+                );
+
+            const float depth =
+                layer == 0 ? 0.30f :
+                layer == 1 ? 0.60f : 1.0f;
+
+            const float speed =
+                (220.0f + depth * 480.0f) *
+                (0.35f + intensity * 0.65f);
+
+            const float x =
+                randomX * screenWidth;
+
+            const float y =
+                std::fmod(
+                    randomY * screenHeight +
+                    time * speed +
+                    screenHeight,
+                    static_cast<float>(screenHeight)
+                );
+
+            const float length =
+                (3.0f + depth * 9.0f) *
+                (0.5f + intensity);
+
+            const unsigned char alpha =
+                static_cast<unsigned char>(
+                    (12.0f + intensity * 65.0f) *
+                    depth
+                );
+
+            Color rainColour =
+            {
+                185,
+                215,
+                235,
+                alpha
+            };
+
+            DrawLineEx(
+                Vector2{x, y},
+                Vector2{
+                    x - 1.0f * depth,
+                    y + length
+                },
+                layer == 0 ? 0.7f : 1.0f,
+                rainColour
+            );
+        }
+    }
+
+
+    // ------------------------------------------------------------
     // Mouse-wheel zoom.
     // ------------------------------------------------------------
 
@@ -465,7 +677,12 @@ void Renderer::draw(const World& world)
     }
 
     // ------------------------------------------------------------
-    // Rain drops.
+
+    // ------------------------------------------------------------
+    // PHYSICAL RAIN DROPS
+    //
+    // These remain the actual simulated water drops.
+    // Their appearance varies without changing their physics.
     // ------------------------------------------------------------
 
     const World::RainDrop* drops =
@@ -474,28 +691,61 @@ void Renderer::draw(const World& world)
     int dropCount =
         world.getRainDropCount();
 
-    for (
-        int i = 0;
-        i < dropCount;
-        ++i
-    )
+    const float rainTime =
+        static_cast<float>(GetTime());
+
+    const float wind =
+        std::sin(rainTime * 0.35f) * 35.0f +
+        std::sin(rainTime * 0.91f) * 22.0f +
+        std::sin(rainTime * 0.13f) * 65.0f;
+
+    for (int i = 0; i < dropCount; ++i)
     {
-        const World::RainDrop& drop =
-            drops[i];
+        const World::RainDrop& drop = drops[i];
 
-        float length =
+        const float seed = static_cast<float>(i);
+
+        const float random =
+            std::abs(std::sin(seed * 127.1f) * 43758.5453f);
+
+        const float variation =
+            random - std::floor(random);
+
+        const float size =
+            0.65f + variation * 1.8f;
+
+        const float length =
             drop.landed
-            ? 5.0f
-            : 11.0f;
+            ? 3.0f + size * 2.0f
+            : 6.0f + size * 7.0f;
 
-        DrawLine(
-            static_cast<int>(drop.x),
-            static_cast<int>(drop.y),
-            static_cast<int>(drop.x),
-            static_cast<int>(
+        const float windDrift =
+            wind * (0.015f + variation * 0.035f);
+
+        const unsigned char alpha =
+            static_cast<unsigned char>(
+                125.0f + variation * 100.0f
+            );
+
+        Color colour =
+        {
+            155,
+            215,
+            250,
+            alpha
+        };
+
+        DrawLineEx(
+            Vector2{
+                drop.x,
+                drop.y
+            },
+            Vector2{
+                drop.x + windDrift,
                 drop.y + length
-            ),
-            RainColor
+            },
+            size,
+            colour
         );
     }
 
@@ -601,7 +851,7 @@ void Renderer::DrawInfoPanel(
         260;
 
     const int panelHeight =
-        145;
+        175;
 
     DrawRectangle(
         panelX,
@@ -708,5 +958,16 @@ void Renderer::DrawInfoPanel(
         panelY + 130,
         18,
         WHITE
+    );
+
+    DrawText(
+        TextFormat(
+            "Rainfall: %.1f mm/h",
+            world.getRainfallMmPerHour()
+        ),
+        panelX + 10,
+        panelY + 154,
+        18,
+        SKYBLUE
     );
 }
