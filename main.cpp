@@ -23,6 +23,9 @@ int main()
 
     while (!WindowShouldClose())
     {
+        if (IsKeyPressed(KEY_Q))
+            break;
+
         float deltaTime = GetFrameTime();
 
         world.update(deltaTime);
