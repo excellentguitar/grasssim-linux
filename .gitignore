@@ -18,3 +18,15 @@ Debug/
 Release/
 x64/
 x86/
+
+# Linux binaries
+*.o
+*.so
+*.so.*
+*.a
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
